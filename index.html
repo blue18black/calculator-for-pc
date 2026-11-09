@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PC電卓</title>
+<style>
+:root{
+  --bg:#f4f4f4; --panel:#ffffff; --key:#fbfbfb; --key-op:#dedede; --text:#2b2b2b; --muted:#9a9a9a;
+  --green:#22b573; --green-soft:rgba(34,181,115,.14); --red:#e8645a; --line:#ececec;
+  --shadow:0 6px 14px rgba(0,0,0,.07); --kh:clamp(42px, calc((100vh - 360px) / 8), 66px);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#121212; --panel:#1c1c1c; --key:#262626; --key-op:#3a3a3a; --text:#eee; --muted:#888;
+    --line:#2c2c2c; --shadow:0 6px 14px rgba(0,0,0,.35); --green-soft:rgba(34,181,115,.22); }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;
+  display:flex;justify-content:center;padding:16px 16px 20px;overflow:hidden;user-select:none}
+.calc{width:min(440px, 100%);gap:8px;display:flex;flex-direction:column;min-height:0;height:calc(100vh - 36px)}
+.topbar{display:flex;justify-content:space-between;align-items:center;height:40px}
+.icon{border:0;background:none;color:var(--text);opacity:.7;cursor:pointer;font-size:15px;padding:6px 10px;border-radius:10px}
+.icon:hover{opacity:1;background:var(--key-op)}
+.display{flex:0 0 auto;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;
+  padding:4px 8px 8px;gap:2px;overflow:hidden}
+#prev{color:var(--muted);font-size:18px;min-height:22px;text-align:right;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#main{cursor:text;font-size:46px;line-height:1.25;text-align:right;max-width:100%;white-space:nowrap;font-variant-numeric:tabular-nums}
+#main.wrap{white-space:normal;word-break:break-all}
+#main.result{color:var(--green)}
+#sub{color:var(--muted);font-size:20px;min-height:26px;text-align:right;max-width:100%;white-space:nowrap;overflow:hidden}
+#sub.err{color:var(--red);font-size:17px}
+.op{margin:0 .12em;color:var(--green)}
+.negp{opacity:.55}
+.ghost{opacity:.25}
+.caret{display:inline-block;width:2px;height:.9em;background:var(--green);vertical-align:-.08em;margin:0 -1px;animation:blink 1s steps(1) infinite;position:relative}
+.zero{opacity:.35}
+.frac .caret{height:1em}
+.frac .frac{font-size:.85em}
+.frac .op{margin:0 .06em}
+@keyframes blink{50%{opacity:0}}
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.6em;line-height:1.1;margin:0 .1em}
+.frac>span{padding:0 .15em;min-width:.8em;text-align:center}
+.frac>.fn{border-bottom:.08em solid currentColor}
+.frac>.act{background:var(--green-soft);border-radius:4px}
+.exp{white-space:nowrap}
+.exp>sup{font-size:.6em;vertical-align:.8em;line-height:1;padding:0 .08em;margin-left:.04em;border-radius:3px}
+.exp>sup.act{background:var(--green-soft)}
+.exp>sup .op{margin:0 .02em}
+.ph{display:inline-block;width:.55em;height:.75em;border:1.5px dashed currentColor;opacity:.45;border-radius:3px;vertical-align:middle}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex:0 0 auto}
+.k{position:relative;width:100%;height:var(--kh);border-radius:999px;border:0;background:var(--key);color:var(--text);
+  box-shadow:var(--shadow);font-size:calc(var(--kh) * .5);font-family:inherit;cursor:pointer;
+  transition:transform .08s, filter .08s;display:flex;align-items:center;justify-content:center;outline:none}
+.k:hover{filter:brightness(.97)}
+.k:active,.k.pressed{transform:scale(.92);filter:brightness(.9)}
+.k.opk{background:var(--key-op)}
+.k.eq{background:var(--green);color:#fff}
+.k.clr{color:var(--red)}
+.k.pill{height:calc(var(--kh) * .66);font-size:calc(var(--kh) * .3);color:var(--green);font-weight:600}
+.k svg{height:52%;width:auto}
+/* history */
+.hist{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:110px;flex:1 1 auto;overflow:hidden}
+.hist header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;border-bottom:1px solid var(--line)}
+.hist h2{margin:0;font-size:15px;font-weight:600;flex:1}
+.hist header .icon{font-size:13px;padding:5px 8px}
+.hist h2 small{color:var(--muted);font-weight:400;margin-left:6px}
+#hclear{border:0;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:6px 8px;border-radius:8px;font-family:inherit}
+#hclear:hover{background:var(--key-op);color:var(--text)}
+#hclear.armed{color:#fff;background:var(--red)}
+#hlist{list-style:none;margin:0;padding:0;overflow-y:auto;flex:1;min-height:0}
+#hlist li{padding:8px 16px;border-bottom:1px solid var(--line);text-align:right;cursor:default}
+#hlist li.sel{background:var(--green-soft);box-shadow:inset 3px 0 0 var(--green)}
+.he{color:var(--muted);font-size:15px;cursor:pointer;line-height:1.5;word-break:break-all}
+.hr{font-size:20px;cursor:pointer;line-height:1.4;font-variant-numeric:tabular-nums}
+.he:hover,.hr:hover{color:var(--green)}
+.sep{margin:0 .5em;opacity:.5}
+.amari{font-size:.8em}
+.hrem{color:var(--muted);font-size:.7em;margin-left:.8em}
+.hempty{color:var(--muted);text-align:center;padding:40px 16px;font-size:14px;line-height:1.8}
+.hfoot{padding:6px 16px;font-size:11px;color:var(--muted);border-top:1px solid var(--line);line-height:1.6}
+/* help */
+#help{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:10}
+#help.open{display:flex}
+#help .box{background:var(--panel);border-radius:20px;padding:22px 26px;width:min(560px,92vw);max-height:88vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+#help h3{margin:0 0 12px;font-size:17px}
+#help table{border-collapse:collapse;width:100%;font-size:14px}
+#help td{padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+#help td:first-child{white-space:nowrap;width:42%}
+kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:12px;font-family:inherit;background:var(--bg);margin:1px 1px}
+#help p{font-size:13px;color:var(--muted);margin:12px 0 0;line-height:1.7}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:.92}
+
+</style>
+</head>
+<body>
+<div class="calc">
+  <section class="hist">
+  <header>
+    <h2>履歴<small id="hcount"></small></h2>
+    <button class="icon" id="helpBtn" tabindex="-1" title="ショートカット一覧 (?)">？ キー操作</button>
+    <button id="hclear" tabindex="-1">すべて削除</button>
+  </header>
+  <ul id="hlist"></ul>
+</section>
+  <div class="display">
+    <div id="prev"></div>
+    <div id="main"></div>
+    <div id="sub"></div>
+  </div>
+  <div class="keys" id="keys">
+    <button class="k pill" data-act="neg" tabindex="-1">±</button>
+    <button class="k pill" data-act="frac" tabindex="-1">a/b</button>
+    <button class="k pill" data-act="mode" tabindex="-1" id="modeBtn">小数</button>
+    <button class="k pill" data-act="ans" tabindex="-1">Ans</button>
+
+    <button class="k clr" data-act="clear" tabindex="-1">C</button>
+    <button class="k clr" data-act="back" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M8 5h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H8l-6-7z"/><path d="M11 9l6 6M17 9l-6 6"/></svg></button>
+    <button class="k" data-act="pct" tabindex="-1">%</button>
+    <button class="k opk" data-act="op/" tabindex="-1">÷</button>
+
+    <button class="k" data-act="d7" tabindex="-1">7</button>
+    <button class="k" data-act="d8" tabindex="-1">8</button>
+    <button class="k" data-act="d9" tabindex="-1">9</button>
+    <button class="k opk" data-act="op*" tabindex="-1">×</button>
+
+    <button class="k" data-act="d4" tabindex="-1">4</button>
+    <button class="k" data-act="d5" tabindex="-1">5</button>
+    <button class="k" data-act="d6" tabindex="-1">6</button>
+    <button class="k opk" data-act="op-" tabindex="-1">−</button>
+
+    <button class="k" data-act="d1" tabindex="-1">1</button>
+    <button class="k" data-act="d2" tabindex="-1">2</button>
+    <button class="k" data-act="d3" tabindex="-1">3</button>
+    <button class="k opk" data-act="op+" tabindex="-1">+</button>
+
+    <button class="k" data-act="paren" tabindex="-1">( )</button>
+    <button class="k" data-act="d0" tabindex="-1">0</button>
+    <button class="k" data-act="dot" tabindex="-1">.</button>
+    <button class="k eq" data-act="eq" tabindex="-1">=</button>
+  </div>
+</div>
+
+
+
+<div id="help"><div class="box">
+  <h3>キーボード操作</h3>
+  <table>
+    <tr><td><kbd>0</kbd>〜<kbd>9</kbd> <kbd>.</kbd></td><td>数字・小数点。テンキーは NumLock オフや日本語入力 ON でもそのまま使えます</td></tr>
+    <tr><td><kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd></td><td>＋ − × ÷(<kbd>X</kbd> でも ×)</td></tr>
+    <tr><td><kbd>Enter</kbd> <kbd>=</kbd></td><td>計算</td></tr>
+    <tr><td><kbd>Backspace</kbd></td><td>1文字消す</td></tr>
+    <tr><td><kbd>Esc</kbd> / <kbd>.</kbd><kbd>.</kbd>(2回)</td><td>C(全部消す)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>元に戻す / やり直し(全部消した後や = の後も戻せます)</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>カーソルの右の1文字を消す</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd></td><td>カーソル移動(式をクリックしても移動できます)</td></tr>
+    <tr><td><kbd>↑</kbd> <kbd>↓</kbd>(分数の中・隣)</td><td>分子 ⇔ 分母 に移動して打ち直し</td></tr>
+    <tr><td><kbd>%</kbd></td><td>パーセント(50+10% = 55)</td></tr>
+    <tr><td><kbd>(</kbd> <kbd>)</kbd> / <kbd>P</kbd></td><td>かっこ(P は開き/閉じを自動判定)</td></tr>
+    <tr><td><kbd>N</kbd> <kbd>F9</kbd> / <kbd>-</kbd><kbd>-</kbd>(2回)</td><td>± 正負の切り替え(直前の数・かっこ全体)</td></tr>
+    <tr><td><kbd>F</kbd> <kbd>\</kbd></td><td>分数の入力:<b>1 F 3</b> で ⅓。分子・分母には 1+4 や 2×3 などの式も入ります。<br>分子で F → 分母へ、分母で F(または <kbd>→</kbd>)→ 分数の外へ出ます。<b>(1+2) F</b> でかっこの中身が分子になります</td></tr>
+    <tr><td><kbd>/</kbd><kbd>/</kbd>(2回)</td><td>分数の入力(<kbd>F</kbd> と同じ):<b>1 // 3</b> で ⅓</td></tr>
+    <tr><td><kbd>*</kbd><kbd>*</kbd>(2回)</td><td>累乗:<b>2 ** 3</b> で 2³ = 8、<b>(1+2) ** 2</b> で 9、<b>2 ** -1</b> で ½</td></tr>
+    <tr><td><kbd>+</kbd><kbd>+</kbd>(2回)</td><td>10の何乗:<b>3 ++ 8</b> で 3×10⁸、<b>2 ++ -5</b> で 2×10⁻⁵</td></tr>
+    <tr><td>指数(累乗・10の何乗)</td><td>数字と先頭の − だけが入り(<kbd>N</kbd> で正負切替)、演算子や <kbd>→</kbd> で指数の外へ出ます。<br>× ÷ より先に計算するので 1 ÷ 2×10³ = 1/2000、−2² = −4 です</td></tr>
+    <tr><td>割り算のあまり</td><td>式全体が「整数 ÷ 整数」で割り切れないときは <b>17 ÷ 5 = 3 あまり 2</b> も表示します(答えの下と履歴)</td></tr>
+    <tr><td><kbd>D</kbd></td><td>答えの表示切替:小数 → 分数 → 帯分数</td></tr>
+    <tr><td><kbd>A</kbd></td><td>前回の答え(Ans)を挿入</td></tr>
+    <tr><td><kbd>↑</kbd> <kbd>↓</kbd>(それ以外) / <kbd>PgUp</kbd> <kbd>PgDn</kbd></td><td>履歴を選択(↑で古い方へ) → <kbd>Enter</kbd> 答えを挿入 / <kbd>Shift</kbd>+<kbd>Enter</kbd> 式を呼び戻す</td></tr>
+    <tr><td>履歴をクリック</td><td>答え部分 → 式に挿入 / 式部分 → 式を呼び戻す</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>答えをコピー / 式を貼り付け</td></tr>
+    <tr><td><kbd>?</kbd></td><td>この一覧</td></tr>
+  </table>
+  <p>分数は内部で「分子/分母」のまま正確に計算するので、1/3 × 3 はぴったり 1 になります。分数は ÷ よりも強く結びつくので、かっこは不要です(例:2 ÷ ¾ = 8/3)。</p>
+</div></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ---------- 有理数 ---------- */
+class CalcError extends Error{constructor(code){super(code);this.code=code}}
+const gcd=(a,b)=>{if(a<0n)a=-a;if(b<0n)b=-b;while(b){[a,b]=[b,a%b]}return a};
+const pow10=k=>10n**BigInt(k);
+class R{
+  constructor(n,d=1n){if(d===0n)throw new CalcError('div0');if(d<0n){n=-n;d=-d}const g=gcd(n,d)||1n;this.n=n/g;this.d=d/g}
+  add(o){return new R(this.n*o.d+o.n*this.d,this.d*o.d)}
+  sub(o){return new R(this.n*o.d-o.n*this.d,this.d*o.d)}
+  mul(o){return new R(this.n*o.n,this.d*o.d)}
+  div(o){if(o.n===0n)throw new CalcError('div0');return new R(this.n*o.d,this.d*o.n)}
+  neg(){return new R(-this.n,this.d)}
+  isInt(){return this.d===1n}
+}
+function parseNumStr(s){
+  if(s==='')throw new CalcError('incomplete');
+  if((s.match(/\./g)||[]).length>1)throw new CalcError('syntax');
+  if(s==='.')s='0';
+  const [i,f='']=s.split('.');
+  return new R(BigInt((i||'0')+f),pow10(f.length));
+}
+
+/* ---------- 式の表現 ----------
+   リスト: 1文字ずつの配列。数字 '0'-'9' '.' / 演算子 '+-* /' / '(' ')' '%'
+   分数は {n:[リスト], d:[リスト]}。分子・分母の中にも式(分数を含む)を入れられる
+   10の何乗は {e:[リスト]}(×10ⁿ)。指数には数字と先頭の '-' だけが入る */
+const isObj=c=>c!==null&&typeof c==='object';
+const isExp=c=>isObj(c)&&Array.isArray(c.e);   // ×10ⁿ
+const isPow=c=>isObj(c)&&Array.isArray(c.p);   // 直前の数の累乗
+const isSup=c=>isExp(c)||isPow(c);             // 上付きの指数を持つもの
+const supKey=c=>isExp(c)?'e':'p';
+const isFrac=c=>isObj(c)&&!isSup(c);
+const firstPart=o=>isSup(o)?supKey(o):'n';
+const lastPart=o=>isSup(o)?supKey(o):'d';
+function expInt(s){
+  if(!/^-?\d+$/.test(s))throw new CalcError(s===''||s==='-'?'incomplete':'syntax');
+  return parseInt(s,10);
+}
+function pow10R(s){
+  const k=expInt(s);
+  if(Math.abs(k)>1000)throw new CalcError('range');
+  return k>=0?new R(pow10(k)):new R(1n,pow10(-k));
+}
+function powR(v,s){
+  const k=expInt(s);
+  if(k===0)return new R(1n);
+  if(k<0&&v.n===0n)throw new CalcError('div0');
+  const a=Math.abs(k);
+  const len=(v.n<0n?-v.n:v.n).toString().length+v.d.toString().length;
+  if(a>100000||(len-1)*a>20000)throw new CalcError('range');   // 桁数が大きくなりすぎるのを防ぐ
+  const n=v.n**BigInt(a),d=v.d**BigInt(a);
+  return k>0?new R(n,d):new R(d,n);
+}
+const isNumCh=c=>typeof c==='string'&&/^[0-9.]$/.test(c);
+const isOpCh=c=>typeof c==='string'&&'+-*/'.includes(c);
+const isValEnd=c=>c!==undefined&&(isObj(c)||isNumCh(c)||c===')'||c==='%');
+
+function tokenize(arr){
+  const out=[];let i=0;
+  while(i<arr.length){
+    const c=arr[i];
+    if(isExp(c)){out.push({t:'exp',s:c.e.join('')});i++;continue}
+    if(isPow(c)){out.push({t:'pow',s:c.p.join('')});i++;continue}
+    if(isObj(c)){out.push({t:'frac',n:tokenize(c.n),d:tokenize(c.d)});i++;continue}
+    if(isNumCh(c)){let s='';while(i<arr.length&&isNumCh(arr[i]))s+=arr[i++];out.push({t:'num',s});continue}
+    if(isOpCh(c))out.push({t:'op',v:c});
+    else if(c==='(')out.push({t:'lp'});
+    else if(c===')')out.push({t:'rp'});
+    else if(c==='%')out.push({t:'pct'});
+    i++;
+  }
+  return out;
+}
+function evaluate(tokens){
+  let i=0;const peek=()=>tokens[i];
+  const isOp=(...v)=>peek()&&peek().t==='op'&&v.includes(peek().v);
+  const startsPrimary=()=>peek()&&(peek().t==='num'||peek().t==='frac'||peek().t==='lp');
+  function expr(){
+    let left=term().v;
+    while(isOp('+','-')){
+      const op=tokens[i++].v;const r=term();
+      const rv=r.pctOnly?left.mul(r.v):r.v;      // 50+10% → 50+5
+      left=op==='+'?left.add(rv):left.sub(rv);
+    }
+    return left;
+  }
+  function term(){
+    const a=unary();let v=a.v,pctOnly=a.pct;
+    for(;;){
+      if(isOp('*','/')){const op=tokens[i++].v;const b=unary().v;v=op==='*'?v.mul(b):v.div(b);pctOnly=false}
+      else if(startsPrimary()){v=v.mul(unary().v);pctOnly=false}   // 2(3+4) などの省略された ×
+      else break;
+    }
+    return {v,pctOnly};
+  }
+  function unary(){
+    if(isOp('-')){i++;const u=unary();return {v:u.v.neg(),pct:u.pct}}
+    if(isOp('+')){i++;return unary()}
+    let v=primary(),pct=false;
+    for(;;){  // 後置:×10ⁿ と %
+      const t=peek();
+      if(t&&t.t==='exp'){i++;v=v.mul(pow10R(t.s))}
+      else if(t&&t.t==='pow'){i++;v=powR(v,t.s)}
+      else if(t&&t.t==='pct'){i++;v=v.mul(new R(1n,100n));pct=true}
+      else break;
+    }
+    return {v,pct};
+  }
+  function primary(){
+    const t=peek();if(!t)throw new CalcError('incomplete');
+    if(t.t==='num'){i++;return parseNumStr(t.s)}
+    if(t.t==='exp'){i++;return pow10R(t.s)}   // 前に数が無ければ 10ⁿ そのもの
+    if(t.t==='pow')throw new CalcError('incomplete');   // 累乗の元の数が無い
+    if(t.t==='frac'){i++;if(!t.n.length||!t.d.length)throw new CalcError('incomplete');return evaluate(t.n).div(evaluate(t.d))}
+    if(t.t==='lp'){i++;const v=expr();if(peek()&&peek().t==='rp')i++;return v}
+    throw new CalcError(t.t==='op'?'incomplete':'syntax');
+  }
+  if(!tokens.length)throw new CalcError('incomplete');
+  const v=expr();
+  if(i<tokens.length)throw new CalcError('syntax');
+  return v;
+}
+function trimTokens(ts){ // 入力途中の式でもプレビューできるよう末尾の演算子などを外す
+  ts=ts.map(t=>t.t==='frac'?{t:'frac',n:trimTokens(t.n),d:trimTokens(t.d)}:t);
+  for(;;){
+    const t=ts[ts.length-1];
+    if(t&&(t.t==='op'||t.t==='lp'||((t.t==='exp'||t.t==='pow')&&!/^-?\d+$/.test(t.s))))ts.pop();else break;
+  }
+  return ts;
+}
+
+/* ---------- 書式 ---------- */
+const group=s=>s.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+function exactDecimal(r){
+  let d=r.d,t=0,f=0;while(d%2n===0n){d/=2n;t++}while(d%5n===0n){d/=5n;f++}
+  if(d!==1n)return null;
+  const k=Math.max(t,f);const neg=r.n<0n;const n=neg?-r.n:r.n;
+  const s=(n*pow10(k)/r.d).toString().padStart(k+1,'0');
+  return {neg,int:s.slice(0,s.length-k),frac:s.slice(s.length-k)};
+}
+function fmtDec(r){
+  if(r.n===0n)return '0';
+  const ex=exactDecimal(r);
+  if(ex&&(ex.int.length+ex.frac.length)<=20)return (ex.neg?'−':'')+group(ex.int)+(ex.frac?'.'+ex.frac:'');
+  const neg=r.n<0n,n=neg?-r.n:r.n,d=r.d;
+  let e=n.toString().length-d.toString().length;
+  const ge=k=>k>=0?n>=d*pow10(k):n*pow10(-k)>=d;
+  if(!ge(e))e--;
+  const P=14;let sh=P-e,num=n,den=d;
+  if(sh>=0)num*=pow10(sh);else den*=pow10(-sh);
+  let q=(2n*num+den)/(2n*den);
+  if(q>=pow10(15)){q/=10n;e++}
+  const D=q.toString();let out;
+  if(e>=21||e<-7){const m=(D[0]+'.'+D.slice(1)).replace(/0+$/,'').replace(/\.$/,'');out=m+'e'+(e>0?'+':'')+e}
+  else if(e>=14)out=group(D+'0'.repeat(e-14));
+  else if(e>=0){const fr=D.slice(e+1).replace(/0+$/,'');out=group(D.slice(0,e+1))+(fr?'.'+fr:'')}
+  else out='0.'+('0'.repeat(-e-1)+D).replace(/0+$/,'');
+  return (neg?'−':'')+out;
+}
+const fracHTML=(n,d)=>`<span class="frac"><span class="fn">${group(n)}</span><span class="fd">${group(d)}</span></span>`;
+const expHTML=s=>s.replace(/e([+-])(\d+)$/,(m,sg,d)=>`<span class="op">×</span>10<sup>${sg==='-'?'−':''}${d}</sup>`);
+function fmtHTML(r,mode){
+  if(r.isInt()){
+    const a=(r.n<0n?-r.n:r.n).toString();
+    if(a.length>20)return expHTML(fmtDec(r));   // 大きすぎる整数は ×10ⁿ で表示
+    return (r.n<0n?'−':'')+group(a);
+  }
+  if(mode===0)return expHTML(fmtDec(r));
+  const neg=r.n<0n,n=neg?-r.n:r.n,sign=neg?'−':'';
+  if(mode===2&&n>r.d)return sign+group((n/r.d).toString())+fracHTML((n%r.d).toString(),r.d.toString());
+  return sign+fracHTML(n.toString(),r.d.toString());
+}
+
+/* 割り算のあまり:式全体が「整数 ÷ 整数」のとき 商 と あまり を返す(あまり 0 のときは null)
+   あまりは 0 以上・割る数の絶対値未満(−7 ÷ 3 = −3 あまり 2) */
+function divRem(ts){
+  let depth=0,k=-1;
+  const valEnd=t=>t&&['num','frac','exp','pow','rp','pct'].includes(t.t);
+  for(let j=0;j<ts.length;j++){
+    const t=ts[j];
+    if(t.t==='lp')depth++;
+    else if(t.t==='rp')depth--;
+    else if(depth===0&&t.t==='op'){
+      if(t.v==='/')k=j;
+      else if((t.v==='+'||t.v==='-')&&valEnd(ts[j-1]))return null;   // 足し算・引き算が混ざる式は対象外
+    }
+  }
+  if(k<1)return null;
+  try{
+    const a=evaluate(ts.slice(0,k)),b=evaluate(ts.slice(k+1));
+    if(!a.isInt()||!b.isInt()||b.n===0n)return null;
+    const all=evaluate(ts);
+    if(all.n*b.n!==a.n*all.d)return null;   // 式全体が本当に A ÷ B になっているか(2(3) などの省略×対策)
+    const B=b.n<0n?-b.n:b.n;
+    let r=a.n%B;if(r<0n)r+=B;
+    if(r===0n)return null;
+    return {q:(a.n-r)/b.n,r};
+  }catch(e){return null}
+}
+function remHTML(ts){
+  const x=divRem(ts);if(!x)return '';
+  const q=x.q<0n?'−'+group((-x.q).toString()):group(x.q.toString());
+  return `${q} <span class="amari">あまり</span> ${group(x.r.toString())}`;
+}
+
+/* ---------- 状態 ---------- */
+let items=[],justEval=false,lastAns=null,prevExpr=null,mode=0,errMsg='',history=[],histSel=-1;
+// カーソル: path = ルートから分数の中へ入っていく道順 [{k, part}]、i = その中での位置
+let cur={path:[],i:0};
+const STORE='pcCalc.v2';
+function save(){try{localStorage.setItem(STORE,JSON.stringify({history:history.slice(0,2000),mode,
+  ans:lastAns?[lastAns.n.toString(),lastAns.d.toString()]:null}))}catch(e){}}
+function migrateV1(ts){
+  const out=[];
+  for(const t of ts){
+    if(t.t==='num'){const ch=[...t.s];if(t.neg)out.push('(','-',...ch,')');else out.push(...ch)}
+    else if(t.t==='frac'){const f={n:[...t.n],d:[...t.d]};if(t.neg)out.push('(','-',f,')');else out.push(f)}
+    else if(t.t==='op')out.push(t.v);else if(t.t==='lp')out.push('(');else if(t.t==='rp')out.push(')');
+    else if(t.t==='pct')out.push('%');else if(t.t==='uneg')out.push('-');
+  }
+  return out;
+}
+function load(){try{
+  let o=JSON.parse(localStorage.getItem(STORE)||'null');
+  if(!o){const v1=JSON.parse(localStorage.getItem('pcCalc.v1')||'null');
+    if(v1){o=v1;o.history=(v1.history||[]).map(h=>({e:migrateV1(h.e||[]),r:h.r}))}}
+  if(!o)return;
+  history=Array.isArray(o.history)?o.history:[];mode=o.mode|0;
+  if(o.ans)lastAns=new R(BigInt(o.ans[0]),BigInt(o.ans[1]));
+}catch(e){history=[]}}
+const rFrom=h=>new R(BigInt(h.r[0]),BigInt(h.r[1]));
+const clone=a=>JSON.parse(JSON.stringify(a));
+
+function listAt(path){let l=items;for(const s of path)l=l[s.k][s.part];return l}
+const L=()=>listAt(cur.path);
+const inF=()=>cur.path.length>0;
+const resetCur=()=>{cur={path:[],i:items.length}};
+function exitFrac(after=true){const s=cur.path.pop();cur.i=s.k+(after?1:0)}
+const inExp=()=>{const t=cur.path[cur.path.length-1];return !!t&&(t.part==='e'||t.part==='p')};   // 指数(上付き)の中
+function exitExp(){while(inExp())exitFrac(true)}
+function enter(k,part,atEnd){const f=L()[k];cur.path.push({k,part});cur.i=atEnd?f[part].length:0}
+function ins(...cs){L().splice(cur.i,0,...cs);cur.i+=cs.length}
+function openBefore(list,pos){let c=0;for(let j=0;j<pos;j++){if(list[j]==='(')c++;else if(list[j]===')')c--}return c}
+const openIn=list=>openBefore(list,list.length);
+function leaveEval(reset){if(justEval){justEval=false;prevExpr=null;if(reset)items=[];resetCur()}}
+function valueItems(r){
+  const neg=r.n<0n,a=neg?-r.n:r.n;let body;
+  if(r.isInt()){
+    const s=a.toString(),m=/^(\d*?[1-9])(0{6,})$/.exec(s);
+    body=(s.length>15&&m)?[...m[1],{e:[...String(m[2].length)]}]:[...s];   // 大きい数は ×10ⁿ の形で
+  }
+  else{const ex=exactDecimal(r);
+    body=(ex&&ex.int.length+ex.frac.length<=15)?[...(ex.int+'.'+ex.frac)]:[{n:[...a.toString()],d:[...r.d.toString()]}]}
+  return neg?['(','-',...body,')']:body;
+}
+function runAround(arr,pos){let s=pos,e=pos;while(s>0&&isNumCh(arr[s-1]))s--;while(e<arr.length&&isNumCh(arr[e]))e++;return [s,e]}
+function matchOpen(list,rpIdx){let depth=0;for(let s=rpIdx;s>=0;s--){if(list[s]===')')depth++;else if(list[s]==='('&&--depth===0)return s}return -1}
+
+/* ---------- 入力 ---------- */
+function inDigit(d){leaveEval(true);ins(d)}
+function inDot(){
+  if(lastAct==='dot'){inClear();return}   // .. → 全部消す
+  leaveEval(true);if(inExp())return;const l=L();
+  const [s,e]=runAround(l,cur.i);if(l.slice(s,e).includes('.'))return;
+  if(isNumCh(l[cur.i-1]))ins('.');else ins('0','.');
+}
+function inOp(v){
+  leaveEval(false);
+  if(v==='-'&&lastAct==='op-'&&L()[cur.i-1]==='-'){   // -- → ± 正負の切り替え
+    L().splice(cur.i-1,1);cur.i--;
+    if(!inExp())inNeg();
+    return;
+  }
+  if(inExp()){
+    if(v==='-'&&cur.i===0&&L()[0]!=='-'){ins('-');return}   // 指数の符号
+    exitExp();                                              // それ以外は指数の外へ出てから
+  }
+  const l=L(),p=l[cur.i-1];
+  if(p===v&&(v==='/'||v==='*'||v==='+')){   // ÷÷ → 分数 / ×× → 累乗 / ++ → ×10ⁿ
+    l.splice(cur.i-1,1);cur.i--;
+    if(v==='/')inFrac();else inSup(v==='*'?'p':'e');
+    return;
+  }
+  if(isOpCh(p)){
+    if(v==='-'&&(p==='*'||p==='/'))ins('-');
+    else{
+      if(isOpCh(l[cur.i-2])){l.splice(cur.i-2,1);cur.i--}   // ×− の後に別の演算子 → まとめて置き換え
+      l[cur.i-1]=v;
+    }
+    return;
+  }
+  ins(v);   // 先頭でも × ÷ をそのまま表示(×× / ÷÷ で 10ⁿ / 分数の枠にできる)
+}
+function inSup(key){const l=L();l.splice(cur.i,0,{[key]:[]});enter(cur.i,key,false)}
+function inPct(){leaveEval(false);exitExp();if(isValEnd(L()[cur.i-1]))ins('%')}
+function inParen(kind){
+  leaveEval(false);exitExp();
+  const l=L(),p=l[cur.i-1];
+  if(kind==='smart')kind=(openBefore(l,cur.i)>0&&isValEnd(p))?')':'(';
+  if(kind==='(')ins('(');
+  else if(isValEnd(p))ins(')');
+}
+function inFrac(){
+  leaveEval(false);exitExp();
+  if(inF()){
+    const s=cur.path[cur.path.length-1];
+    if(s.part==='n'){s.part='d';cur.i=listAt(cur.path).length}   // 分子 → 分母へ
+    else exitFrac(true);                                          // 分母 → 分数の外へ
+    return;
+  }
+  const l=L();let s=cur.i,n=null;
+  if(l[s-1]===')'){                       // (1+2) F → 分子が 1+2
+    const o=matchOpen(l,s-1);
+    if(o>=0){n=l.splice(o,s-o).slice(1,-1);s=o}
+  }else{
+    while(s>0&&(isNumCh(l[s-1])||isSup(l[s-1])))s--;   // 3×10⁸ F → 分子が 3×10⁸
+    if(s<cur.i)n=l.splice(s,cur.i-s);
+  }
+  if(n){l.splice(s,0,{n,d:[]});cur.i=s;enter(s,'d',false)}
+  else{l.splice(cur.i,0,{n:[],d:[]});enter(cur.i,'n',false)}
+}
+function inBack(){
+  leaveEval(false);
+  const l=L();
+  if(cur.i>0){
+    const p=l[cur.i-1];
+    if(isObj(p)){enter(cur.i-1,lastPart(p),true);inBack();return}
+    l.splice(cur.i-1,1);cur.i--;return;
+  }
+  if(!inF())return;
+  const s=cur.path[cur.path.length-1];
+  const parentPath=cur.path.slice(0,-1),parent=listAt(parentPath),f=parent[s.k];
+  if(s.part==='e'||s.part==='p'){
+    if(!f[s.part].length){parent.splice(s.k,1);cur={path:parentPath,i:s.k}}  // ×10ⁿ・累乗をやめる
+    else exitFrac(false);
+    return;
+  }
+  if(s.part==='d'){
+    if(!f.d.length){parent.splice(s.k,1,...f.n);cur={path:parentPath,i:s.k+f.n.length}}  // 分数をやめる
+    else{s.part='n';cur.i=f.n.length}
+    return;
+  }
+  if(!f.n.length&&!f.d.length){parent.splice(s.k,1);cur={path:parentPath,i:s.k}}
+  else exitFrac(false);
+}
+function inDel(){
+  leaveEval(false);
+  const l=L(),p=l[cur.i];
+  if(p===undefined){
+    if(inF()&&cur.path[cur.path.length-1].part==='n'){cur.path[cur.path.length-1].part='d';cur.i=0}
+    return;
+  }
+  if(isObj(p)){
+    const empty=isSup(p)?!p[supKey(p)].length:(!p.n.length&&!p.d.length);
+    if(empty)l.splice(cur.i,1);else enter(cur.i,firstPart(p),false);
+    return;
+  }
+  l.splice(cur.i,1);
+}
+function operandSpan(l,pos){ // pos の直前にある「数」の範囲 [s,e)
+  let e=pos,j=pos;
+  while(j>0&&l[j-1]==='%')j--;
+  const p=l[j-1];
+  if(isNumCh(p)||(j===pos&&isNumCh(l[pos]))){
+    let s=j;while(s>0&&isNumCh(l[s-1]))s--;
+    if(j===pos){while(e<l.length&&isNumCh(l[e]))e++}
+    return [s,e];
+  }
+  if(isSup(p)){const [s2]=operandSpan(l,j-1);return [Math.min(s2,j-1),e]}   // 3×10⁸ や 2³ 全体
+  if(isObj(p))return [j-1,e];
+  if(p===')'){const s=matchOpen(l,j-1);if(s>=0)return [s,e]}
+  return [pos,pos];
+}
+function inNeg(){
+  leaveEval(false);
+  if(inExp()){   // 指数の正負を切り替え
+    const l=L();
+    if(l[0]==='-'){l.splice(0,1);if(cur.i>0)cur.i--}else{l.unshift('-');cur.i++}
+    return;
+  }
+  const l=L();let P=cur.i;
+  const [s,e]=operandSpan(l,cur.i);
+  if(l[s]==='('&&l[s+1]==='-'&&l[e-1]===')'&&e-s>3&&operandSpan(l,e-1)[0]===s+2){   // (−5) → 5 に戻す
+    l.splice(e-1,1);l.splice(s,2);
+    if(P>=e)P-=3;else if(P>s+1)P-=2;else if(P>s)P=s;
+  }else if(s>=2&&l[s-1]==='-'&&l[s-2]==='('){
+    const rp=l[e]===')';
+    if(rp)l.splice(e,1);
+    l.splice(s-2,2);
+    if(P>=s)P-=2;if(rp&&P>e)P-=1;
+  }else if(s>=1&&l[s-1]==='-'&&(s===1||isOpCh(l[s-2])||l[s-2]==='(')){
+    l.splice(s-1,1);if(P>=s)P-=1;
+  }else if(s===e){
+    l.splice(s,0,'(','-');P=s+2;
+  }else{
+    l.splice(e,0,')');l.splice(s,0,'(','-');
+    if(P===e)P+=3;else{if(P>=s)P+=2;if(P>e+2)P+=1}
+  }
+  cur.i=P;
+}
+function inClear(){items=[];justEval=false;prevExpr=null;resetCur()}
+const ERR={div0:'0 で割ることはできません',incomplete:'式が完成していません',syntax:'式が正しくありません',range:'数が大きすぎます'};
+function closeAll(list){ // 履歴用:閉じ忘れたかっこを補う
+  const out=list.map(c=>isSup(c)?{[supKey(c)]:[...c[supKey(c)]]}:isObj(c)?{n:closeAll(c.n),d:closeAll(c.d)}:c);
+  for(let k=openIn(out);k>0;k--)out.push(')');
+  return out;
+}
+function inEq(){
+  if(justEval||!items.length)return;
+  try{
+    const v=evaluate(tokenize(items));
+    const expr=closeAll(items);
+    const single=items.every(isNumCh);
+    if(!single){history.unshift({e:expr,r:[v.n.toString(),v.d.toString()]});histSel=-1}
+    lastAns=v;prevExpr=expr;items=valueItems(v);resetCur();justEval=true;save();
+  }catch(e){
+    if(!(e instanceof CalcError))throw e;
+    errMsg=ERR[e.code]||'エラー';
+  }
+}
+function insertValue(r){
+  if(justEval){justEval=false;prevExpr=null;items=valueItems(r);resetCur();return}
+  exitExp();ins(...valueItems(r));
+}
+function inAns(){if(lastAns)insertValue(lastAns)}
+function loadExpr(i){const h=history[i];if(!h)return;items=clone(h.e);justEval=false;prevExpr=null;resetCur()}
+function insertHist(i){const h=history[i];if(h)insertValue(rFrom(h))}
+
+/* ---------- カーソル移動 ---------- */
+function moveLeft(){
+  leaveEval(false);const l=L();
+  if(cur.i>0){if(isObj(l[cur.i-1]))enter(cur.i-1,lastPart(l[cur.i-1]),true);else cur.i--;return}
+  if(!inF())return;
+  const s=cur.path[cur.path.length-1];
+  if(s.part==='d'){s.part='n';cur.i=listAt(cur.path).length}else exitFrac(false);
+}
+function moveRight(){
+  leaveEval(false);const l=L();
+  if(cur.i<l.length){if(isObj(l[cur.i]))enter(cur.i,firstPart(l[cur.i]),false);else cur.i++;return}
+  if(!inF())return;
+  const s=cur.path[cur.path.length-1];
+  if(s.part==='n'){s.part='d';cur.i=0}else exitFrac(true);
+}
+function moveVert(up){ // 分子 ⇔ 分母
+  const want=up?'n':'d',other=up?'d':'n';
+  for(let j=cur.path.length-1;j>=0;j--){
+    if(cur.path[j].part===other){
+      leaveEval(false);
+      const path=cur.path.slice(0,j+1);path[j]={k:path[j].k,part:want};
+      const len=listAt(path).length;
+      cur={path,i:j===cur.path.length-1?Math.min(cur.i,len):len};
+      return true;
+    }
+  }
+  if(justEval)return false;
+  const l=L();
+  const k=isFrac(l[cur.i-1])?cur.i-1:isFrac(l[cur.i])?cur.i:-1;
+  if(k<0)return false;
+  enter(k,want,true);return true;
+}
+function moveHome(){leaveEval(false);cur={path:[],i:0}}
+function moveEnd(){leaveEval(false);resetCur()}
+
+/* ---------- 描画 ---------- */
+const OPS={'+':'+','-':'−','*':'×','/':'÷'};
+function commaSet(arr){
+  const set=new Set();let j=0;
+  while(j<arr.length){
+    if(!isNumCh(arr[j])){j++;continue}
+    let s=j;while(j<arr.length&&isNumCh(arr[j]))j++;
+    let intEnd=s;while(intEnd<j&&arr[intEnd]!=='.')intEnd++;
+    for(let q=s;q<intEnd;q++){const rem=intEnd-q-1;if(rem>0&&rem%3===0)set.add(q)}
+  }
+  return set;
+}
+const CARET='<span class="caret"></span>';
+const pathStr=p=>p.map(s=>s.k+s.part).join('/');
+const parsePath=s=>s?s.split('/').map(x=>({k:parseInt(x),part:x.slice(-1)})):[];
+function itemsHTML(arr,withCur,path=[]){
+  const ps=pathStr(path),here=withCur&&pathStr(cur.path)===ps;
+  const inE=path.length&&'ep'.includes(path[path.length-1].part);
+  const cs=inE?new Set():commaSet(arr);let h='';
+  arr.forEach((c,idx)=>{
+    if(here&&cur.i===idx)h+=CARET;
+    if(isSup(c)){
+      const key=supKey(c),sub=path.concat({k:idx,part:key}),act=withCur&&pathStr(cur.path)===pathStr(sub);
+      const hasBase=isValEnd(arr[idx-1]);
+      const base=key==='e'?(hasBase?'<span class="op">×</span>':'')+'10'   // ×10ⁿ
+        :(hasBase?'':'<span class="ph"></span>');                          // 累乗:元の数が無ければ空枠
+      h+=`<span class="exp"><span data-loc="${ps}|${idx}">${base}</span><sup class="${act?'act':''}" data-lp="${pathStr(sub)}">${itemsHTML(c[key],withCur,sub)}${c[key].length?'':'<span class="ph"></span>'}</sup></span>`;
+    }
+    else if(isObj(c)){
+      const part=pt=>{const sub=path.concat({k:idx,part:pt});const act=withCur&&pathStr(cur.path)===pathStr(sub);
+        return `<span class="${pt==='n'?'fn':'fd'}${act?' act':''}" data-lp="${pathStr(sub)}">${itemsHTML(c[pt],withCur,sub)}${c[pt].length?'':'<span class="ph"></span>'}</span>`};
+      h+=`<span class="frac">${part('n')}${part('d')}</span>`;
+    }
+    else if(isOpCh(c))h+=`<span class="ch op" data-loc="${ps}|${idx}">${OPS[c]}</span>`;
+    else h+=`<span class="ch" data-loc="${ps}|${idx}">${c}</span>`+(cs.has(idx)?',':'');
+  });
+  if(here&&cur.i===arr.length)h+=CARET;
+  const g=openIn(arr);
+  if(withCur&&g>0)h+=`<span class="ghost">${')'.repeat(g)}</span>`;
+  return h;
+}
+const $=id=>document.getElementById(id);
+const mainEl=$('main'),subEl=$('sub'),prevEl=$('prev');
+function fit(){
+  mainEl.classList.remove('wrap');
+  for(const s of [46,40,35,30,26,22]){mainEl.style.fontSize=s+'px';if(mainEl.scrollWidth<=mainEl.parentElement.clientWidth-12)return}
+  mainEl.classList.add('wrap');
+}
+function render(){
+  subEl.classList.remove('err');
+  if(justEval){
+    const r=lastAns;
+    prevEl.innerHTML=itemsHTML(prevExpr||[],false)+' =';
+    mainEl.className='result';mainEl.innerHTML=fmtHTML(r,mode);
+    const parts=[];
+    if(!r.isInt())parts.push('= '+fmtHTML(r,mode===0?1:0));
+    const rem=remHTML(prevExpr?tokenize(prevExpr):[]);
+    if(rem)parts.push(rem);
+    subEl.innerHTML=parts.join('<span class="sep">｜</span>');
+  }else{
+    prevEl.innerHTML='';mainEl.className='';
+    mainEl.innerHTML=items.length?itemsHTML(items,true):CARET+'<span class="zero">0</span>';
+    if(errMsg){subEl.classList.add('err');subEl.textContent=errMsg}
+    else subEl.innerHTML=preview();
+  }
+  errMsg='';
+  fit();
+  $('modeBtn').firstChild.nodeValue=['小数','分数','帯分数'][mode];
+  renderHistory();
+}
+function preview(){
+  if(items.every(isNumCh))return '';
+  const ts=trimTokens(tokenize(items));
+  if(!ts.length||(ts.length===1&&ts[0].t==='num'))return '';
+  try{
+    const rem=remHTML(ts);
+    return '= '+fmtHTML(evaluate(ts),mode)+(rem?'<span class="sep">｜</span>'+rem:'');
+  }catch(e){return ''}
+}
+let lastHistKey='';
+function renderHistory(){
+  const key=history.length+'|'+mode+'|'+histSel+'|'+(history[0]?history[0].r.join('/'):'');
+  if(key===lastHistKey)return;lastHistKey=key;
+  $('hcount').textContent=history.length?`${history.length}件`:'';
+  const ul=$('hlist');
+  if(!history.length){ul.innerHTML='<li class="hempty" style="border:0;text-align:center">まだ履歴はありません<br>計算するとここに全部残ります</li>';return}
+  const frag=[];
+  history.slice().reverse().forEach((h,j)=>{const i=history.length-1-j;
+    let r;try{r=fmtHTML(rFrom(h),mode)}catch(e){r='?'}
+    const rem=remHTML(tokenize(h.e));if(rem)r+=`<span class="hrem">${rem}</span>`;
+    frag.push(`<li data-i="${i}"${i===histSel?' class="sel"':''}><div class="he" data-k="e">${itemsHTML(h.e,false)} =</div><div class="hr" data-k="r">${r}</div></li>`);
+  });
+  ul.innerHTML=frag.join('');
+  if(histSel>=0){const el=ul.querySelector('li.sel');if(el)el.scrollIntoView({block:'nearest'})}
+  else ul.scrollTop=ul.scrollHeight;
+}
+
+/* ---------- 元に戻す / やり直し ---------- */
+let lastAct=null,undoStack=[],redoStack=[],recording=false;
+function stateSnap(){
+  return {items:clone(items),cur:clone(cur),justEval,prevExpr:prevExpr?clone(prevExpr):null,
+    ans:lastAns?[lastAns.n.toString(),lastAns.d.toString()]:null};
+}
+const contentKey=s=>JSON.stringify([s.items,s.justEval,s.prevExpr]);   // カーソル移動だけは記録しない
+function record(fn){   // fn で式が変わったら、変わる前の状態を元に戻す用に積む
+  if(recording){fn();return}
+  recording=true;const before=stateSnap();
+  try{fn()}finally{recording=false}
+  if(contentKey(before)!==contentKey(stateSnap())){
+    undoStack.push(before);if(undoStack.length>300)undoStack.shift();
+    redoStack=[];
+  }
+}
+function restoreSnap(s){
+  items=s.items;cur=s.cur;justEval=s.justEval;prevExpr=s.prevExpr;
+  lastAns=s.ans?new R(BigInt(s.ans[0]),BigInt(s.ans[1])):null;
+  lastAct=null;histSel=-1;errMsg='';render();
+}
+function undo(){
+  if(!undoStack.length){toast('これ以上元に戻せません');return}
+  redoStack.push(stateSnap());restoreSnap(undoStack.pop());
+}
+function redo(){
+  if(!redoStack.length){toast('やり直す操作がありません');return}
+  undoStack.push(stateSnap());restoreSnap(redoStack.pop());
+}
+
+/* ---------- 操作の振り分け ---------- */
+function act(a){
+  record(()=>{
+    if(a[0]==='d'&&a.length===2)inDigit(a[1]);
+    else if(a.startsWith('op'))inOp(a[2]);
+    else ({dot:inDot,eq:inEq,back:inBack,del:inDel,clear:inClear,pct:inPct,neg:inNeg,frac:inFrac,ans:inAns,
+      paren:()=>inParen('smart'),lp:()=>inParen('('),rp:()=>inParen(')'),
+      left:moveLeft,right:moveRight,home:moveHome,end:moveEnd,
+      mode:()=>{mode=(mode+1)%3;save();lastHistKey=''}}[a]||(()=>{}))();
+  });
+  lastAct=a;   // .. や -- の判定用
+  render();
+}
+function flash(a){
+  const b=document.querySelector(`.k[data-act="${CSS.escape(a)}"]`)||(a==='lp'||a==='rp'?document.querySelector('.k[data-act="paren"]'):null);
+  if(!b)return;b.classList.add('pressed');clearTimeout(b._t);b._t=setTimeout(()=>b.classList.remove('pressed'),110);
+}
+const KEYMAP={'.':'dot',',':'dot','+':'op+','-':'op-','*':'op*','x':'op*','X':'op*','/':'op/',
+  'Enter':'eq','=':'eq','Backspace':'back','Delete':'del','Escape':'clear','%':'pct','(':'lp',')':'rp','p':'paren','P':'paren',
+  'n':'neg','N':'neg','F9':'neg','f':'frac','F':'frac','\\':'frac','¥':'frac','d':'mode','D':'mode','a':'ans','A':'ans',
+  'ArrowLeft':'left','ArrowRight':'right','Home':'home','End':'end'};
+// テンキーは NumLock の状態や日本語入力に関係なく、物理キーで判定する
+const NUMPAD={NumpadDecimal:'dot',NumpadComma:'dot',NumpadAdd:'op+',NumpadSubtract:'op-',NumpadMultiply:'op*',
+  NumpadDivide:'op/',NumpadEnter:'eq',NumpadEqual:'eq'};
+for(let d=0;d<10;d++)NUMPAD['Numpad'+d]='d'+d;
+function keyToAct(k){if(/^[0-9]$/.test(k))return 'd'+k;return KEYMAP[k]||null}
+function imeKey(e){ // 日本語入力ON(key==='Process')のときに物理キーから推定
+  const c=e.code;let m;
+  if((m=/^Digit(\d)$/.exec(c))&&!e.shiftKey)return m[1];
+  if((m=/^Key([A-Z])$/.exec(c)))return m[1].toLowerCase();
+  return {Period:'.',Comma:',',Slash:'/',Minus:'-',Backspace:'Backspace',Enter:'Enter',Escape:'Escape',Delete:'Delete',
+    ArrowLeft:'ArrowLeft',ArrowRight:'ArrowRight',ArrowUp:'ArrowUp',ArrowDown:'ArrowDown'}[c]||null;
+}
+
+document.querySelectorAll('.k').forEach(b=>{
+  b.addEventListener('mousedown',e=>e.preventDefault());
+  b.addEventListener('click',()=>act(b.dataset.act));
+});
+function toggleHelp(force){$('help').classList.toggle('open',force)}
+$('helpBtn').addEventListener('click',()=>toggleHelp());
+$('help').addEventListener('click',e=>{if(e.target.id==='help')toggleHelp(false)});
+let clearArm=null;
+$('hclear').addEventListener('click',()=>{
+  const b=$('hclear');
+  if(!history.length)return;
+  if(b.classList.contains('armed')){history=[];histSel=-1;save();b.classList.remove('armed');b.textContent='すべて削除';lastHistKey='';render();return}
+  b.classList.add('armed');b.textContent='もう一度押すと削除';
+  clearTimeout(clearArm);clearArm=setTimeout(()=>{b.classList.remove('armed');b.textContent='すべて削除'},2500);
+});
+$('hlist').addEventListener('click',e=>{
+  const part=e.target.closest('[data-k]');const li=e.target.closest('li[data-i]');if(!part||!li)return;
+  const i=+li.dataset.i;
+  record(()=>{if(part.dataset.k==='r')insertHist(i);else loadExpr(i)});
+  lastAct=null;histSel=-1;render();
+});
+// 式をクリックしてカーソルを置く
+mainEl.addEventListener('mousedown',e=>{
+  record(()=>{if(justEval)leaveEval(false)});
+  const after=el=>{const r=el.getBoundingClientRect();return e.clientX>r.left+r.width/2};
+  const ch=e.target.closest('[data-loc]'),part=e.target.closest('[data-lp]');
+  if(ch&&(!part||part.contains(ch))){const [p,j]=ch.dataset.loc.split('|');cur={path:parsePath(p),i:+j+(after(ch)?1:0)}}
+  else if(part){const path=parsePath(part.dataset.lp);cur={path,i:listAt(path).length}}
+  else resetCur();
+  lastAct=null;render();
+});
+
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1300)}
+function currentText(){
+  let r=null;
+  if(justEval)r=lastAns;else{try{r=evaluate(tokenize(items))}catch(e){}}
+  if(!r)return null;
+  if(r.isInt())return r.n.toString();
+  const ex=exactDecimal(r);if(ex)return (ex.neg?'-':'')+ex.int+'.'+ex.frac;
+  return fmtDec(r).replace(/,/g,'').replace('−','-');
+}
+async function copyResult(){
+  const s=currentText();if(s===null){toast('コピーできる答えがありません');return}
+  try{await navigator.clipboard.writeText(s);toast('コピーしました: '+s)}
+  catch(e){toast('コピーできませんでした')}
+}
+function histMove(older){
+  if(!history.length)return;
+  if(older)histSel=Math.min(history.length-1,histSel+1);
+  else histSel=histSel<=0?-1:histSel-1;
+  lastHistKey='';render();
+}
+
+document.addEventListener('keydown',e=>{
+  if($('help').classList.contains('open')){if(e.key==='Escape'||e.key==='?'){toggleHelp(false);e.preventDefault()}return}
+  if(e.ctrlKey||e.metaKey){
+    if(e.code==='KeyZ'&&!e.shiftKey){e.preventDefault();undo()}                     // Ctrl+Z 元に戻す
+    else if(e.code==='KeyY'||(e.code==='KeyZ'&&e.shiftKey)){e.preventDefault();redo()} // Ctrl+Y やり直し
+    else if(e.key==='c'||e.key==='C'){if(!window.getSelection().toString()){e.preventDefault();copyResult()}}
+    return;
+  }
+  if(e.altKey)return;
+  // テンキー
+  if(NUMPAD[e.code]&&!(histSel>=0&&e.code==='NumpadEnter')){e.preventDefault();histSel=-1;flash(NUMPAD[e.code]);act(NUMPAD[e.code]);return}
+  let k=e.key;
+  if(k==='Process'||e.isComposing||e.keyCode===229){k=imeKey(e);if(!k)return}
+  if(k==='?'){toggleHelp(true);e.preventDefault();return}
+  if(k==='PageUp'||k==='PageDown'){e.preventDefault();histMove(k==='PageUp');return}
+  if(histSel>=0){
+    if(k==='ArrowUp'||k==='ArrowDown'){e.preventDefault();histMove(k==='ArrowUp');return}
+    if(k==='Enter'){e.preventDefault();const i=histSel;record(()=>{if(e.shiftKey)loadExpr(i);else insertHist(i)});lastAct=null;histSel=-1;lastHistKey='';render();return}
+    if(k==='Escape'){e.preventDefault();histSel=-1;lastHistKey='';render();return}
+    histSel=-1;lastHistKey='';
+  }
+  if(k==='ArrowUp'||k==='ArrowDown'){
+    e.preventDefault();
+    if(moveVert(k==='ArrowUp')){render();return}  // 分数の分子⇔分母
+    histMove(k==='ArrowUp');return;
+  }
+  const a=keyToAct(k);
+  if(!a)return;
+  e.preventDefault();flash(a);act(a);
+});
+document.addEventListener('paste',e=>{
+  const s=(e.clipboardData||window.clipboardData).getData('text');if(!s)return;e.preventDefault();
+  const map={'×':'op*','÷':'op/','−':'op-','ー':'op-','／':'op/','＊':'op*','＋':'op+','（':'lp','）':'rp'};
+  record(()=>{   // 貼り付けは 1 回の操作として元に戻せる
+    if(justEval)leaveEval(true);
+    for(const ch0 of s){
+      const ch=ch0.replace(/[０-９]/,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
+      if(ch===','||ch===' ')continue;
+      const a=map[ch]||(/[0-9.+\-*/()%]/.test(ch)?keyToAct(ch):null);
+      if(a){lastAct=null;act(a)}   // 貼り付けでは .. や -- を特別扱いしない
+    }
+  });
+  lastAct=null;render();
+});
+window.addEventListener('resize',fit);
+
+load();render();
+</script>
+</body>
+</html>
